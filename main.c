@@ -59,7 +59,9 @@
 #include "ble_advdata.h"
 #include "ble_advertising.h"
 #include "ble_bas.h"
-#include "ble_hrs.h"
+//#include "ble_hrs.h"
+#include "services/ble_pwm.h"
+
 #include "ble_dis.h"
 #include "ble_conn_params.h"
 #include "sensorsim.h"
@@ -77,9 +79,11 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#include "nrf_delay.h"
+
 
 #define DEVICE_NAME                         "Nordic_HRM"                            /**< Name of device. Will be included in the advertising data. */
-#define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
+#define MANUFACTURER_NAME                   "TopLab"                   /**< Manufacturer. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                    300                                     /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
 #define APP_ADV_TIMEOUT_IN_SECONDS          180                                     /**< The advertising timeout in units of seconds. */
 
@@ -125,8 +129,10 @@
 
 #define APP_FEATURE_NOT_SUPPORTED           BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2    /**< Reply when unsupported features are requested. */
 
+static void ble_pwm_evt_handler(ble_pwm_t *p_pwm, ble_pwm_evt_t *evt);
 
-BLE_HRS_DEF(m_hrs);                                                 /**< Heart rate service instance. */
+//BLE_HRS_DEF(m_hrs);                                                 /**< Heart rate service instance. */
+BLE_PWM_DEF(m_pwm);                                                 /**< Heart rate service instance. */
 BLE_BAS_DEF(m_bas);                                                 /**< Structure used to identify the battery service. */
 NRF_BLE_GATT_DEF(m_gatt);                                           /**< GATT module instance. */
 BLE_ADVERTISING_DEF(m_advertising);                                 /**< Advertising module instance. */
@@ -147,7 +153,7 @@ static sensorsim_state_t m_rr_interval_sim_state;                   /**< RR Inte
 
 static ble_uuid_t m_adv_uuids[] =                                   /**< Universally unique service identifiers. */
 {
-    {BLE_UUID_HEART_RATE_SERVICE,           BLE_UUID_TYPE_BLE},
+//    {BLE_UUID_HEART_RATE_SERVICE,           BLE_UUID_TYPE_BLE},
     {BLE_UUID_BATTERY_SERVICE,              BLE_UUID_TYPE_BLE},
     {BLE_UUID_DEVICE_INFORMATION_SERVICE,   BLE_UUID_TYPE_BLE}
 };
@@ -364,29 +370,30 @@ static void battery_level_meas_timeout_handler(void * p_context)
  */
 static void heart_rate_meas_timeout_handler(void * p_context)
 {
-    static uint32_t cnt = 0;
-    ret_code_t      err_code;
-    uint16_t        heart_rate;
+//    static uint32_t cnt = 0;
+//    ret_code_t      err_code;
+//    uint16_t        heart_rate;
 
     UNUSED_PARAMETER(p_context);
 
-    heart_rate = (uint16_t)sensorsim_measure(&m_heart_rate_sim_state, &m_heart_rate_sim_cfg);
-
-    cnt++;
-    err_code = ble_hrs_heart_rate_measurement_send(&m_hrs, heart_rate);
-    if ((err_code != NRF_SUCCESS) &&
-        (err_code != NRF_ERROR_INVALID_STATE) &&
-        (err_code != NRF_ERROR_RESOURCES) &&
-        (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
-       )
-    {
-        APP_ERROR_HANDLER(err_code);
-    }
+//    heart_rate = (uint16_t)sensorsim_measure(&m_heart_rate_sim_state, &m_heart_rate_sim_cfg);
+//
+//    cnt++;
+//    err_code = ble_hrs_heart_rate_measurement_send(&m_hrs, heart_rate);
+//    if ((err_code != NRF_SUCCESS) &&
+//        (err_code != NRF_ERROR_INVALID_STATE) &&
+//        (err_code != NRF_ERROR_RESOURCES) &&
+//        (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
+//       )
+//    {
+//        APP_ERROR_HANDLER(err_code);
+//    }
 
     // Disable RR Interval recording every third heart rate measurement.
     // NOTE: An application will normally not do this. It is done here just for testing generation
     // of messages without RR Interval measurements.
-    m_rr_interval_enabled = ((cnt % 3) != 0);
+
+//    m_rr_interval_enabled = ((cnt % 3) != 0);
 }
 
 
@@ -401,29 +408,29 @@ static void rr_interval_timeout_handler(void * p_context)
 {
     UNUSED_PARAMETER(p_context);
 
-    if (m_rr_interval_enabled)
-    {
-        uint16_t rr_interval;
-
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
-        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
-                                                  &m_rr_interval_sim_cfg);
-        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
-    }
+//    if (m_rr_interval_enabled)
+//    {
+//        uint16_t rr_interval;
+//
+//        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
+//                                                  &m_rr_interval_sim_cfg);
+//        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
+//        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
+//                                                  &m_rr_interval_sim_cfg);
+//        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
+//        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
+//                                                  &m_rr_interval_sim_cfg);
+//        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
+//        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
+//                                                  &m_rr_interval_sim_cfg);
+//        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
+//        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
+//                                                  &m_rr_interval_sim_cfg);
+//        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
+//        rr_interval = (uint16_t)sensorsim_measure(&m_rr_interval_sim_state,
+//                                                  &m_rr_interval_sim_cfg);
+//        ble_hrs_rr_interval_add(&m_hrs, rr_interval);
+//    }
 }
 
 
@@ -436,12 +443,12 @@ static void rr_interval_timeout_handler(void * p_context)
  */
 static void sensor_contact_detected_timeout_handler(void * p_context)
 {
-    static bool sensor_contact_detected = false;
+//    static bool sensor_contact_detected = false;
 
     UNUSED_PARAMETER(p_context);
 
-    sensor_contact_detected = !sensor_contact_detected;
-    ble_hrs_sensor_contact_detected_update(&m_hrs, sensor_contact_detected);
+//    sensor_contact_detected = !sensor_contact_detected;
+//    ble_hrs_sensor_contact_detected_update(&m_hrs, sensor_contact_detected);
 }
 
 
@@ -524,7 +531,7 @@ static void gatt_evt_handler(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const *
                      p_evt->params.att_mtu_effective);
     }
 
-    ble_hrs_on_gatt_evt(&m_hrs, p_evt);
+//    ble_hrs_on_gatt_evt(&m_hrs, p_evt);
 }
 
 
@@ -544,29 +551,39 @@ static void gatt_init(void)
 static void services_init(void)
 {
     ret_code_t     err_code;
-    ble_hrs_init_t hrs_init;
+//    ble_hrs_init_t hrs_init;
     ble_bas_init_t bas_init;
     ble_dis_init_t dis_init;
     uint8_t        body_sensor_location;
 
-    // Initialize Heart Rate Service.
-    body_sensor_location = BLE_HRS_BODY_SENSOR_LOCATION_FINGER;
+//    // Initialize Heart Rate Service.
+//    body_sensor_location = BLE_HRS_BODY_SENSOR_LOCATION_FINGER;
+//
+//    memset(&hrs_init, 0, sizeof(hrs_init));
+//
+//    hrs_init.evt_handler                 = NULL;
+//    hrs_init.is_sensor_contact_supported = true;
+//    hrs_init.p_body_sensor_location      = &body_sensor_location;
+//
+//    // Here the sec level for the Heart Rate Service can be changed/increased.
+//    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_hrm_attr_md.cccd_write_perm);
+//    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_hrm_attr_md.read_perm);
+//    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_hrm_attr_md.write_perm);
+//
+//    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_bsl_attr_md.read_perm);
+//    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_bsl_attr_md.write_perm);
+//
+//    err_code = ble_hrs_init(&m_hrs, &hrs_init);
+//    APP_ERROR_CHECK(err_code);
 
-    memset(&hrs_init, 0, sizeof(hrs_init));
+    ble_pwm_init_t pwm_init;
+    pwm_init.evt_handler = ble_pwm_evt_handler;
 
-    hrs_init.evt_handler                 = NULL;
-    hrs_init.is_sensor_contact_supported = true;
-    hrs_init.p_body_sensor_location      = &body_sensor_location;
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&pwm_init.pwm_level_char_attr_md.cccd_write_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&pwm_init.pwm_level_char_attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&pwm_init.pwm_level_char_attr_md.write_perm);
 
-    // Here the sec level for the Heart Rate Service can be changed/increased.
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_hrm_attr_md.cccd_write_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_hrm_attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_hrm_attr_md.write_perm);
-
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&hrs_init.hrs_bsl_attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&hrs_init.hrs_bsl_attr_md.write_perm);
-
-    err_code = ble_hrs_init(&m_hrs, &hrs_init);
+    err_code = ble_pwm_init(&m_pwm, &pwm_init);
     APP_ERROR_CHECK(err_code);
 
     // Initialize Battery Service.
@@ -693,7 +710,7 @@ static void conn_params_init(void)
     cp_init.first_conn_params_update_delay = FIRST_CONN_PARAMS_UPDATE_DELAY;
     cp_init.next_conn_params_update_delay  = NEXT_CONN_PARAMS_UPDATE_DELAY;
     cp_init.max_conn_params_update_count   = MAX_CONN_PARAMS_UPDATE_COUNT;
-    cp_init.start_on_notify_cccd_handle    = m_hrs.hrm_handles.cccd_handle;
+//    cp_init.start_on_notify_cccd_handle    = m_hrs.hrm_handles.cccd_handle;
     cp_init.disconnect_on_fail             = false;
     cp_init.evt_handler                    = on_conn_params_evt;
     cp_init.error_handler                  = conn_params_error_handler;
@@ -914,6 +931,26 @@ void bsp_event_handler(bsp_event_t event)
     }
 }
 
+static void ble_pwm_evt_handler(ble_pwm_t *p_pwm, ble_pwm_evt_t *evt) {
+  uint32_t err_code;
+  if (evt->evt_type == BLE_PWM_EVT_NOTIFICATION_ENABLED) {
+    NRF_LOG_INFO("BLE_BMI160_EVT_NOTIFICATION_ENABLED\r\n");
+//    __USER_SET_FLAG(gyro_flags,NOTIFY_RAW);
+    //    pwm_normal();
+   // need_read_data = true; //mememe
+    NRF_LOG_INFO("BLE_BMI160_EVT_NOTIFICATION_ENABLED\r\n");
+    //pwm_need_normal_mode = true;
+  } else if (evt->evt_type == BLE_PWM_EVT_TX_COMPLETE) { // BLE_BMI160_EVT_NOTIFICATION_DISABLED | BLE_MCP3008_EVT_DISCONNECTED
+                                                            //NRF_LOG_INFO("BLE_BMI160_EVT_TX_COMPLETE\r\n");
+    //need_read_data = true;
+  } else {
+    NRF_LOG_INFO("BLE_BMI160_EVT_NOTIFICATION_DISABLED\r\n");
+    //pwm_need_low_power_mode = true;
+//    __USER_CLEAR_FLAG(gyro_flags,NOTIFY_RAW);
+    //need_read_data = false; //mememe
+    NRF_LOG_INFO("BLE_BMI160_EVT_NOTIFICATION_DISABLED\r\n");
+  }
+}
 
 /**@brief Function for the Peer Manager initialization.
  */
@@ -1044,7 +1081,11 @@ int main(void)
 
     // Enter main loop.
     for (;;)
-    {
+    {   
+        uint8_t test = 0xff;
+        ble_pwm_level_update(&m_pwm, test);
+        nrf_delay_ms(1000);
+        NRF_LOG_INFO("ahahah");
         if (NRF_LOG_PROCESS() == false)
         {
             power_manage();
