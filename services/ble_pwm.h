@@ -60,6 +60,7 @@ typedef struct ble_pwm_s ble_pwm_t;
 
 /**@brief PWM Service event handler type. */
 typedef void (*ble_pwm_evt_handler_t) (ble_pwm_t * p_pwm, ble_pwm_evt_t * p_evt);
+typedef void (*ble_pwm_write_handler_t) (uint16_t conn_handle, ble_pwm_t * p_pwm, const uint8_t * new_state);
 
 /**@brief PWM Service init structure. This contains all options and data needed for
  *        initialization of the service.*/
@@ -71,6 +72,7 @@ typedef struct
     uint8_t                       initial_pwm_level;             /**< Initial pwm level */
     ble_srv_cccd_security_mode_t  pwm_level_char_attr_md;     /**< Initial security level for pwm characteristics attribute */
     ble_gap_conn_sec_mode_t       pwm_level_report_read_perm; /**< Initial security level for pwm report read attribute */
+    ble_pwm_write_handler_t       pwm_write_handler; /**< Event handler to be called when the PWM Characteristic is written. */
 } ble_pwm_init_t;
 
 /**@brief PWM Service structure. This contains various status information for the service. */
@@ -84,6 +86,7 @@ struct ble_pwm_s
     uint16_t                      conn_handle;                    /**< Handle of the current connection (as provided by the BLE stack, is BLE_CONN_HANDLE_INVALID if not in a connection). */
     bool                          is_notification_supported;      /**< TRUE if notification of PWM Level is supported. */
     uint8_t                       uuid_type;
+    ble_pwm_write_handler_t       pwm_write_handler; /**< Event handler to be called when the PWM Characteristic is written. */
 };
 
 //struct ble_pwm_s {

@@ -82,7 +82,7 @@
 #include "nrf_delay.h"
 
 
-#define DEVICE_NAME                         "Nordic_HRM"                            /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                         "Cristmasslight_pwm"                            /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "TopLab"                   /**< Manufacturer. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                    300                                     /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
 #define APP_ADV_TIMEOUT_IN_SECONDS          180                                     /**< The advertising timeout in units of seconds. */
@@ -130,6 +130,7 @@
 #define APP_FEATURE_NOT_SUPPORTED           BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2    /**< Reply when unsupported features are requested. */
 
 static void ble_pwm_evt_handler(ble_pwm_t *p_pwm, ble_pwm_evt_t *evt);
+static void ble_pwm_write_handler(uint16_t conn_handle, ble_pwm_t * p_pwm, uint8_t * new_state);
 
 //BLE_HRS_DEF(m_hrs);                                                 /**< Heart rate service instance. */
 BLE_PWM_DEF(m_pwm);                                                 /**< Heart rate service instance. */
@@ -577,11 +578,20 @@ static void services_init(void)
 //    APP_ERROR_CHECK(err_code);
 
     ble_pwm_init_t pwm_init;
+
+    
+    // Initialize PWM Service.
+    memset(&pwm_init, 0, sizeof(pwm_init));
+    
     pwm_init.evt_handler = ble_pwm_evt_handler;
+    pwm_init.pwm_write_handler = ble_pwm_write_handler;
+
+    pwm_init.initial_pwm_level = 13;
+    pwm_init.support_notification = true;
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&pwm_init.pwm_level_char_attr_md.cccd_write_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&pwm_init.pwm_level_char_attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&pwm_init.pwm_level_char_attr_md.write_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&pwm_init.pwm_level_char_attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&pwm_init.pwm_level_char_attr_md.write_perm);
 
     err_code = ble_pwm_init(&m_pwm, &pwm_init);
     APP_ERROR_CHECK(err_code);
@@ -934,22 +944,28 @@ void bsp_event_handler(bsp_event_t event)
 static void ble_pwm_evt_handler(ble_pwm_t *p_pwm, ble_pwm_evt_t *evt) {
   uint32_t err_code;
   if (evt->evt_type == BLE_PWM_EVT_NOTIFICATION_ENABLED) {
-    NRF_LOG_INFO("BLE_BMI160_EVT_NOTIFICATION_ENABLED\r\n");
+    NRF_LOG_INFO("BLE_PWM_EVT_NOTIFICATION_ENABLED\r\n");
 //    __USER_SET_FLAG(gyro_flags,NOTIFY_RAW);
     //    pwm_normal();
    // need_read_data = true; //mememe
-    NRF_LOG_INFO("BLE_BMI160_EVT_NOTIFICATION_ENABLED\r\n");
+    NRF_LOG_INFO("BLE_PWM_EVT_NOTIFICATION_ENABLED\r\n");
     //pwm_need_normal_mode = true;
   } else if (evt->evt_type == BLE_PWM_EVT_TX_COMPLETE) { // BLE_BMI160_EVT_NOTIFICATION_DISABLED | BLE_MCP3008_EVT_DISCONNECTED
                                                             //NRF_LOG_INFO("BLE_BMI160_EVT_TX_COMPLETE\r\n");
     //need_read_data = true;
   } else {
-    NRF_LOG_INFO("BLE_BMI160_EVT_NOTIFICATION_DISABLED\r\n");
+    NRF_LOG_INFO("BLE_PWM_EVT_NOTIFICATION_DISABLED\r\n");
     //pwm_need_low_power_mode = true;
 //    __USER_CLEAR_FLAG(gyro_flags,NOTIFY_RAW);
     //need_read_data = false; //mememe
-    NRF_LOG_INFO("BLE_BMI160_EVT_NOTIFICATION_DISABLED\r\n");
+    NRF_LOG_INFO("BLE_PWM_EVT_NOTIFICATION_DISABLED\r\n");
   }
+}
+
+static void ble_pwm_write_handler(uint16_t conn_handle, ble_pwm_t * p_pwm, uint8_t * new_state) {
+
+  NRF_LOG_INFO("BLE_PWM_EVT_WRITED_NEW_VALUE\r\n");
+  NRF_LOG_INFO("test write %d", new_state[0]);
 }
 
 /**@brief Function for the Peer Manager initialization.
@@ -1074,7 +1090,7 @@ int main(void)
     peer_manager_init();
 
     // Start execution.
-    NRF_LOG_INFO("Heart Rate Sensor example started.");
+    NRF_LOG_INFO("PWM cristmass light started.");
     application_timers_start();
 
     advertising_start(erase_bonds);
@@ -1083,9 +1099,9 @@ int main(void)
     for (;;)
     {   
         uint8_t test = 0xff;
-        ble_pwm_level_update(&m_pwm, test);
-        nrf_delay_ms(1000);
-        NRF_LOG_INFO("ahahah");
+//        test = ble_pwm_level_update(&m_pwm, test);
+//        nrf_delay_ms(1000);
+//        NRF_LOG_INFO("ahahah %d", test);
         if (NRF_LOG_PROCESS() == false)
         {
             power_manage();
