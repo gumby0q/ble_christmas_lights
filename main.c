@@ -80,7 +80,8 @@
 #include "nrf_log_default_backends.h"
 
 #include "nrf_delay.h"
-
+#include "nrf_drv_clock.h"
+#include "nrf_drv_pwm.h"
 
 #define DEVICE_NAME                         "Cristmasslight_pwm"                            /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "TopLab"                   /**< Manufacturer. Will be passed to Device Information Service. */
@@ -129,6 +130,16 @@
 
 #define APP_FEATURE_NOT_SUPPORTED           BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2    /**< Reply when unsupported features are requested. */
 
+volatile uint16_t pwm_value_chanel_0 = 0;
+volatile uint16_t pwm_value_chanel_1 = 0;
+volatile uint16_t pwm_value_chanel_2 = 0;
+
+static nrf_drv_pwm_t m_pwm0 = NRF_DRV_PWM_INSTANCE(0);
+static nrf_drv_pwm_t m_pwm1 = NRF_DRV_PWM_INSTANCE(1);
+static nrf_drv_pwm_t m_pwm2 = NRF_DRV_PWM_INSTANCE(2);
+//static uint8_t m_used = 0;
+
+
 static void ble_pwm_evt_handler(ble_pwm_t *p_pwm, ble_pwm_evt_t *evt);
 static void ble_pwm_write_handler(uint16_t conn_handle, ble_pwm_t * p_pwm, uint8_t * new_state);
 
@@ -158,6 +169,117 @@ static ble_uuid_t m_adv_uuids[] =                                   /**< Univers
     {BLE_UUID_BATTERY_SERVICE,              BLE_UUID_TYPE_BLE},
     {BLE_UUID_DEVICE_INFORMATION_SERVICE,   BLE_UUID_TYPE_BLE}
 };
+
+
+
+#define PWM_TOP_VALUE 10000
+
+static uint16_t const              m_demo1_top  = PWM_TOP_VALUE;
+static uint16_t const              m_demo1_step = 1000;
+static uint8_t                     m_demo1_phase;
+static nrf_pwm_values_individual_t m_demo1_seq_values;
+static nrf_pwm_sequence_t const    m_demo1_seq =
+{
+    .values.p_individual = &m_demo1_seq_values,
+    .length              = NRF_PWM_VALUES_LENGTH(m_demo1_seq_values),
+    .repeats             = 0,
+    .end_delay           = 0
+};
+
+static void demo1_handler(nrf_drv_pwm_evt_type_t event_type)
+{
+    if (event_type == NRF_DRV_PWM_EVT_FINISHED)
+    {
+//        uint8_t channel    = m_demo1_phase >> 1;
+//        //uint8_t channel    = 1;//m_demo1_phase >> 1;
+//        bool    down       = m_demo1_phase & 1;
+//        bool    next_phase = false;
+//
+//        uint16_t * p_channels = (uint16_t *)&m_demo1_seq_values;
+//        uint16_t value = p_channels[channel];
+//        if (down)
+//        {
+//            value -= m_demo1_step;
+//            if (value == 0)
+//            {
+//                next_phase = true;
+//            }
+//        }
+//        else
+//        {
+//            value += m_demo1_step;
+//            if (value >= m_demo1_top)
+//            {
+//                next_phase = true;
+//            }
+//        }
+//        p_channels[channel] = value;
+//
+//        if (next_phase)
+//        {
+//            if (++m_demo1_phase >= 2 * NRF_PWM_CHANNEL_COUNT)
+//            {
+//                m_demo1_phase = 0;
+//            }
+//        }
+      uint16_t * p_channels = (uint16_t *)&m_demo1_seq_values;
+//      uint16_t value = p_channels[channel];
+      p_channels[0] = pwm_value_chanel_0;
+      p_channels[1] = pwm_value_chanel_1;
+      p_channels[2] = pwm_value_chanel_2;
+    }
+}
+static void demo1(void)
+{
+    NRF_LOG_INFO("Demo 1");
+
+    /*
+     * This demo plays back a sequence with different values for individual
+     * channels (LED 1 - LED 4). Only four values are used (one per channel).
+     * Every time the values are loaded into the compare registers, they are
+     * updated in the provided event handler. The values are updated in such
+     * a way that increase and decrease of the light intensity can be observed
+     * continuously on succeeding channels (one second per channel).
+     */
+
+    nrf_drv_pwm_config_t const config0 =
+    {
+        .output_pins =
+        {
+//            BSP_LED_0 | NRF_DRV_PWM_PIN_INVERTED, // channel 0
+//            BSP_LED_1 | NRF_DRV_PWM_PIN_INVERTED, // channel 1
+////            BSP_LED_3 | NRF_DRV_PWM_PIN_INVERTED, // channel 2
+//            BSP_LED_2 | NRF_DRV_PWM_PIN_INVERTED  // channel 3
+
+
+            BSP_LED_0, // channel 0
+            BSP_LED_1, // channel 1
+//            BSP_LED_3 | NRF_DRV_PWM_PIN_INVERTED, // channel 2
+            BSP_LED_2// channel 3
+
+        },
+        .irq_priority = APP_IRQ_PRIORITY_LOWEST,
+        .base_clock   = NRF_PWM_CLK_1MHz,
+        .count_mode   = NRF_PWM_MODE_UP,
+        .top_value    = m_demo1_top,
+        .load_mode    = NRF_PWM_LOAD_INDIVIDUAL,
+        .step_mode    = NRF_PWM_STEP_AUTO
+    };
+    APP_ERROR_CHECK(nrf_drv_pwm_init(&m_pwm0, &config0, demo1_handler));
+    //m_used |= USED_PWM(0);
+
+    m_demo1_seq_values.channel_0 = 0;
+    m_demo1_seq_values.channel_1 = 0;
+    m_demo1_seq_values.channel_2 = 0;
+//    m_demo1_seq_values.channel_3 = 0;
+    m_demo1_phase                = 0;
+
+    (void)nrf_drv_pwm_simple_playback(&m_pwm0, &m_demo1_seq, 1,
+                                      NRF_DRV_PWM_FLAG_LOOP);
+}
+
+
+
 
 
 /**@brief Callback function for asserts in the SoftDevice.
@@ -985,7 +1107,85 @@ static void ble_pwm_evt_handler(ble_pwm_t *p_pwm, ble_pwm_evt_t *evt) {
 static void ble_pwm_write_handler(uint16_t conn_handle, ble_pwm_t * p_pwm, uint8_t * new_state) {
 
   NRF_LOG_INFO("BLE_PWM_EVT_WRITED_NEW_VALUE\r\n");
-  NRF_LOG_INFO("test write %d", new_state[0]);
+//  NRF_LOG_INFO("test write %d", new_state[0]);
+//  NRF_LOG_INFO("test write %d", new_state[1]);
+//  NRF_LOG_INFO("test write %d", new_state[2]);
+    uint8_t packet_size = 0;
+
+//len = sizeof(arr)/sizeof(arr[0])
+
+    //packet_size = sizeof(new_state);
+    packet_size = sizeof(new_state)/sizeof(new_state[0]);
+ NRF_LOG_INFO("test size %d", packet_size);
+ NRF_LOG_INFO("test size %d", sizeof(new_state[6]));
+ NRF_LOG_INFO("test size %d", new_state[6]);
+    if (packet_size == 7) {
+        /* packet have to be 7 or more bytes */
+        /* first byte is command byte */
+        /* 1-2 is channel 0 */
+        /* 3-4 is channel 1 */
+        /* 5-6 is channel 2 */
+    
+        uint16_t offset = 1;      /* offset by first command byte*/
+        uint16_t value = 0;       /* value holder*/
+        uint8_t value_length = 2; /* 16bit value */
+    /*------*/
+        uint8_t index_value = 0;
+        value = (uint16_t)(new_state[index_value * value_length + 1 + offset] << 8) 
+          + new_state[index_value * value_length + offset];
+
+        if (value > PWM_TOP_VALUE) {
+          value = PWM_TOP_VALUE;
+        }
+
+        pwm_value_chanel_0 = value;
+    /*------*/
+        index_value = 1;
+        value = (uint16_t)(new_state[index_value * value_length + 1 + offset] << 8) 
+          + new_state[index_value * value_length + offset];
+    
+        if (value > PWM_TOP_VALUE) {
+          value = PWM_TOP_VALUE;
+        }
+
+        pwm_value_chanel_1 = value;
+    /*------*/
+        index_value = 2;
+        value = (uint16_t)(new_state[index_value * value_length + 1 + offset] << 8) 
+          + new_state[index_value * value_length + offset];
+    
+        if (value > PWM_TOP_VALUE) {
+          value = PWM_TOP_VALUE;
+        }
+
+        pwm_value_chanel_2 = value;
+
+       NRF_LOG_INFO("SUPER test write0 %d", pwm_value_chanel_0);
+       NRF_LOG_INFO("SUPER test write1 %d", pwm_value_chanel_1);
+       NRF_LOG_INFO("SUPER test write2 %d", pwm_value_chanel_2);
+    }
+
+//  pwm_chanel_0 = (new_state[1]<<8) + new_state[0];
+    
+    /*
+    pwm_value_chanel_0 += m_demo1_step/2;
+    if (pwm_value_chanel_0 >= m_demo1_top) {
+      pwm_value_chanel_0 = 0;
+    }
+
+
+    pwm_value_chanel_1 += m_demo1_step/2;
+    if (pwm_value_chanel_1 >= m_demo1_top) {
+      pwm_value_chanel_1 = 0;
+    }
+
+    pwm_value_chanel_2 += m_demo1_step/2;
+    if (pwm_value_chanel_2 >= m_demo1_top) {
+      pwm_value_chanel_2 = 0;
+    }
+  
+    */
+
 }
 
 /**@brief Function for the Peer Manager initialization.
@@ -1135,7 +1335,9 @@ int main(void)
     application_timers_start();
 
     advertising_start(erase_bonds);
-
+    
+    demo1();
+//    init_bsp();
     // Enter main loop.
     for (;;)
     {   

@@ -7,7 +7,6 @@
 #define MAX_PACKET_LEN (int8_t)12
 #define INVALID_BATTERY_LEVEL 255
 
-
 /**@brief Function for handling the Connect event.
  *
  * @param[in]   p_pwm       PWM Service structure.
@@ -50,9 +49,11 @@ static void on_write(ble_pwm_t * p_pwm, ble_evt_t const * p_ble_evt)
     NRF_LOG_INFO("on_write01 %d", p_evt_write->len);
     NRF_LOG_INFO("on_write02 %d %d", p_evt_write->handle, p_pwm->pwm_level_handles.cccd_handle);
     NRF_LOG_INFO("on_write03 %d %d", p_evt_write->handle, p_pwm->pwm_level_handles.value_handle);
+    
 
+    /* if len >= 7 then ok */
     if (   (p_evt_write->handle == p_pwm->pwm_level_handles.value_handle)
-        && (p_evt_write->len == 3)
+        && (p_evt_write->len >= 7)
         && (p_pwm->pwm_write_handler != NULL))
     {
 
@@ -64,13 +65,13 @@ static void on_write(ble_pwm_t * p_pwm, ble_evt_t const * p_ble_evt)
     {
         if (p_pwm->evt_handler == NULL)
         {
+//            NRF_LOG_INFO("on_write1 %d", p_pwm->is_notification_supported);
             return;
-             NRF_LOG_INFO("on_write1 %d", p_pwm->is_notification_supported);
         }
 
         ble_pwm_evt_t evt;
 
-         NRF_LOG_INFO("on_write2 %d", p_evt_write->data[0]);
+//        NRF_LOG_INFO("on_write2 %d", p_evt_write->data[0]);
 
         if (ble_srv_is_notification_enabled(p_evt_write->data))
         {
